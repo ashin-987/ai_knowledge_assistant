@@ -101,6 +101,8 @@ Answer:
                 }
             }
             
+            
+            
             response = requests.post(
                 self.api_url,
                 headers=headers,
@@ -110,7 +112,7 @@ Answer:
 
             print(f"API Response Status: {response.status_code}")
 
-# ❌ Handle non-200 first
+# Handle non-200
             if response.status_code != 200:
                 return {
                     'answer': f"❌ API Error {response.status_code}:\n{response.text}",
@@ -119,7 +121,7 @@ Answer:
                     'error': f"HTTP {response.status_code}"
                 }
 
-# 🔥 NEW: Handle EMPTY response (this is your current bug)
+# Handle empty
             if not response.text.strip():
                 return {
                     'answer': "⚠️ Empty response from Hugging Face API. Try again.",
@@ -128,79 +130,41 @@ Answer:
                     'error': 'Empty response'
                 }
 
-# ✅ THEN parse JSON safely
+# Parse JSON safely
             try:
                 result = response.json()
+
+                print("REACHED AFTER JSON PARSE")
+                print("RAW RESPONSE:", response.text)
             except:
                 return {
-                    'answer': f"⚠️ Invalid response from API:\n{response.text}",
+                    'answer': f"⚠️ Invalid response:\n{response.text}",
                     'sources': [],
                     'retrieved_chunks': 0,
-                    'error': 'Invalid JSON response'
+                    'error': 'Invalid JSON'
                 }
 
-                # Extract generated text
-                if isinstance(result, list) and len(result) > 0:
-                    answer = result[0].get('generated_text', '')
+# Extract answer
+            if isinstance(result, list) and len(result) > 0:
+                answer = result[0].get('generated_text', '')
 
-                    
-                    # Remove any remaining prompt artifacts
-                    answer = answer.replace('</s>', '').strip()
-                    
-                elif isinstance(result, dict):
-                    answer = result.get('generated_text', result.get('error', 'No response'))
-                else:
-                    answer = "Sorry, I couldn't generate a response."
-                
-                # Extract unique sources
-                sources = list(set([doc['source'] for doc in retrieved_docs]))
-                
-                return {
-                    'answer': answer if answer else "I don't have enough information to answer that.",
-                    'sources': sources,
-                    'retrieved_chunks': len(retrieved_docs),
-                    'context': context
-                }
-            
-            elif response.status_code == 503:
-                return {
-                    'answer': "⏳ The AI model is loading. Please wait 20-30 seconds and try again.",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': 'Model loading'
-                }
-            
-            elif response.status_code == 404:
-                error_detail = response.json() if response.content else {}
-                return {
-                    'answer': f"❌ Model not found! The model '{self.model_name}' doesn't exist or isn't accessible.\n\nError details: {error_detail}",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': f'404 - Model not found: {error_detail}'
-                }
-            
-            elif response.status_code == 401:
-                return {
-                    'answer': "❌ Invalid Hugging Face token. Please check your Streamlit secrets configuration.",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': '401 - Authentication failed'
-                }
-            
+            elif isinstance(result, dict):
+                answer = result.get('generated_text') or result.get('error') or "No response"
+
             else:
-                error_msg = response.text
-                try:
-                    error_detail = response.json()
-                    error_msg = str(error_detail)
-                except:
-                    pass
-                
-                return {
-                    'answer': f"❌ API error {response.status_code}: {error_msg}",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': f'HTTP {response.status_code}: {error_msg}'
-                }
+                answer = str(result)
+
+            answer = answer.replace('</s>', '').strip()
+
+# Extract sources
+            sources = list(set([doc['source'] for doc in retrieved_docs]))
+
+            return {
+                'answer': answer if answer else "I don't have enough information to answer that.",
+                'sources': sources,
+                'retrieved_chunks': len(retrieved_docs),
+                'context': context
+            }
                 
         except requests.exceptions.Timeout:
             return {
