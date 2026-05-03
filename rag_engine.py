@@ -7,9 +7,10 @@ from typing import Dict
 from vector_store import VectorStore
 import requests
 import os
+import streamlit as st
 
 class RAGEngine:
-    def __init__(self, vector_store: VectorStore, model_name="google/flan-t5-base"):
+    def __init__(self, vector_store: VectorStore, model_name = "tiiuae/falcon-7b-instruct"):
         """
         Initialize the RAG engine with Hugging Face API.
         
@@ -22,7 +23,7 @@ class RAGEngine:
         self.api_url = f"https://api-inference.huggingface.co/models/{model_name}"
         
         # Get API token from environment variable
-        self.api_token = os.environ.get("HUGGINGFACE_TOKEN", "")
+        self.api_token = st.secrets.get("HUGGINGFACE_TOKEN", "")
         
         print(f"🤖 RAG Engine initialized with model: {model_name}")
         if not self.api_token:
