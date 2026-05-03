@@ -9,7 +9,7 @@ import requests
 import os
 
 class RAGEngine:
-    def __init__(self, vector_store: VectorStore, model_name="mistralai/Mistral-7B-Instruct-v0.2"):
+    def __init__(self, vector_store: VectorStore, model_name="google/flan-t5-base"):
         """
         Initialize the RAG engine with Hugging Face API.
         
@@ -70,18 +70,24 @@ class RAGEngine:
         context = "\n\n".join(context_parts)
         
         # Step 3: Create prompt
-        prompt = f"""<s>[INST] You are a helpful AI assistant. Answer the question based ONLY on the context provided below.
+        prompt = f"""
+You are a helpful AI assistant.
 
-Context from documents:
+Answer the question using ONLY the information from the context below.
+
+Context:
 {context}
 
-Question: {query}
+Question:
+{query}
 
 Instructions:
-- Only use information from the context above
-- If the answer isn't in the context, say "I don't have enough information to answer that"
-- Cite which documents you used (e.g., "According to Document 1...")
-- Be concise and clear [/INST]"""
+- If the answer is not in the context, say: "I don't have enough information"
+- Mention the document source if possible
+- Keep the answer clear and concise
+
+Answer:
+"""
 
         # Step 4: Call Hugging Face API
         print("🤖 Generating answer...")
