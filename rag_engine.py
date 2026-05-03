@@ -1,6 +1,6 @@
 """
-RAG Engine - Cloud Version (Hugging Face API)
-This version uses Hugging Face's free API instead of local Ollama
+RAG Engine - Cloud Version (Hugging Face API) - FIXED
+This version fixes the 404 error and improves response parsing
 """
 
 from typing import Dict
@@ -10,7 +10,7 @@ import os
 import streamlit as st
 
 class RAGEngine:
-    def __init__(self, vector_store: VectorStore, model_name = "google/flan-t5-base"):
+    def __init__(self, vector_store: VectorStore, model_name="HuggingFaceH4/zephyr-7b-beta"):
         """
         Initialize the RAG engine with Hugging Face API.
         
@@ -22,22 +22,19 @@ class RAGEngine:
         self.model_name = model_name
         self.api_url = f"https://api-inference.huggingface.co/models/{model_name}"
         
-        # Get API token from environment variable
-        self.api_token = st.secrets.get("HUGGINGFACE_TOKEN", "")
+        # Get API token from Streamlit secrets (not .env!)
+        try:
+            self.api_token = st.secrets["HUGGINGFACE_TOKEN"]
+        except:
+            self.api_token = ""
         
         print(f"🤖 RAG Engine initialized with model: {model_name}")
         if not self.api_token:
-            print("⚠️ Warning: No Hugging Face token found. Using public inference (may have rate limits)")
+            print("⚠️ Warning: No Hugging Face token found in Streamlit secrets!")
     
     def generate_answer(self, query: str, n_results: int = 3) -> Dict:
         """
         Generate an answer using RAG with Hugging Face API.
-        
-        Steps:
-        1. Retrieve relevant chunks from vector database
-        2. Create context from chunks
-        3. Send to Hugging Face API
-        4. Return answer with sources
         
         Args:
             query: User's question
@@ -70,30 +67,23 @@ class RAGEngine:
         
         context = "\n\n".join(context_parts)
         
-        # Step 3: Create prompt
-        prompt = f"""
-You are a helpful AI assistant.
-
-Answer the question using ONLY the information from the context below.
-
+        # Step 3: Create prompt (improved format for better models)
+        prompt = f"""<|system|>
+You are a helpful AI assistant. Answer questions using ONLY the provided context.
+If the answer is not in the context, say "I don't have enough information to answer that."
+</s>
+<|user|>
 Context:
 {context}
 
-Question:
-{query}
-
-Instructions:
-- If the answer is not in the context, say: "I don't have enough information"
-- Mention the document source if possible
-- Keep the answer clear and concise
-
-Answer:
-"""
+Question: {query}
+</s>
+<|assistant|>"""
 
         # Step 4: Call Hugging Face API
         print("🤖 Generating answer...")
         try:
-            headers = {}
+            headers = {"Content-Type": "application/json"}
             if self.api_token:
                 headers["Authorization"] = f"Bearer {self.api_token}"
             
@@ -104,6 +94,7 @@ Answer:
                     "temperature": 0.7,
                     "top_p": 0.95,
                     "do_sample": True,
+                    "return_full_text": False  # Important: don't return the prompt!
                 }
             }
             
@@ -114,13 +105,25 @@ Answer:
                 timeout=30
             )
             
+            # Debug: Print response for troubleshooting
+            print(f"API Response Status: {response.status_code}")
+            
             if response.status_code == 200:
                 result = response.json()
                 
                 # Extract generated text
                 if isinstance(result, list) and len(result) > 0:
                     answer = result[0].get('generated_text', '')
-                    # Remove the prompt from the response
+                    
+                    # Clean up: Remove prompt if it's still there
+                    if '<|assistant|>' in answer:
+                        answer = answer.split('<|assistant|>')[-1].strip()
+                    
+                    # Remove any remaining prompt artifacts
+                    answer = answer.replace('</s>', '').strip()
+                    
+                elif isinstance(result, dict):
+                    answer = result.get('generated_text', result.get('error', 'No response'))
                 else:
                     answer = "Sorry, I couldn't generate a response."
                 
@@ -128,7 +131,7 @@ Answer:
                 sources = list(set([doc['source'] for doc in retrieved_docs]))
                 
                 return {
-                    'answer': answer,
+                    'answer': answer if answer else "I don't have enough information to answer that.",
                     'sources': sources,
                     'retrieved_chunks': len(retrieved_docs),
                     'context': context
@@ -136,22 +139,42 @@ Answer:
             
             elif response.status_code == 503:
                 return {
-                    'answer': "⏳ The AI model is loading. Please try again in 20 seconds.",
+                    'answer': "⏳ The AI model is loading. Please wait 20-30 seconds and try again.",
                     'sources': [],
                     'retrieved_chunks': 0,
                     'error': 'Model loading'
                 }
             
-            else:
-                error_msg = f"API error: {response.status_code}"
-                if response.status_code == 401:
-                    error_msg = "❌ Invalid Hugging Face token. Please check your .env file."
-                
+            elif response.status_code == 404:
+                error_detail = response.json() if response.content else {}
                 return {
-                    'answer': error_msg,
+                    'answer': f"❌ Model not found! The model '{self.model_name}' doesn't exist or isn't accessible.\n\nError details: {error_detail}",
                     'sources': [],
                     'retrieved_chunks': 0,
-                    'error': error_msg
+                    'error': f'404 - Model not found: {error_detail}'
+                }
+            
+            elif response.status_code == 401:
+                return {
+                    'answer': "❌ Invalid Hugging Face token. Please check your Streamlit secrets configuration.",
+                    'sources': [],
+                    'retrieved_chunks': 0,
+                    'error': '401 - Authentication failed'
+                }
+            
+            else:
+                error_msg = response.text
+                try:
+                    error_detail = response.json()
+                    error_msg = str(error_detail)
+                except:
+                    pass
+                
+                return {
+                    'answer': f"❌ API error {response.status_code}: {error_msg}",
+                    'sources': [],
+                    'retrieved_chunks': 0,
+                    'error': f'HTTP {response.status_code}: {error_msg}'
                 }
                 
         except requests.exceptions.Timeout:
