@@ -11,6 +11,7 @@ import shutil
 from document_processor import DocumentProcessor
 from vector_store import VectorStore
 from rag_engine import RAGEngine  # Using cloud version
+import streamlit as st
 
 # Page configuration
 st.set_page_config(
@@ -51,7 +52,7 @@ with st.sidebar:
     st.header("📁 Document Management")
     
     # API token info
-    has_token = bool(os.environ.get("HUGGINGFACE_TOKEN"))
+    has_token = bool(st.secrets.get("HUGGINGFACE_TOKEN"))
     if not has_token:
         st.warning("⚠️ Using public API (limited requests). Add HUGGINGFACE_TOKEN for unlimited access.")
         with st.expander("ℹ️ How to get a token (free)"):

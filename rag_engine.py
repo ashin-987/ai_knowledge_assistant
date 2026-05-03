@@ -10,7 +10,7 @@ import os
 import streamlit as st
 
 class RAGEngine:
-    def __init__(self, vector_store: VectorStore, model_name = "tiiuae/falcon-7b-instruct"):
+    def __init__(self, vector_store: VectorStore, model_name = "google/flan-t5-base"):
         """
         Initialize the RAG engine with Hugging Face API.
         
@@ -121,8 +121,6 @@ Answer:
                 if isinstance(result, list) and len(result) > 0:
                     answer = result[0].get('generated_text', '')
                     # Remove the prompt from the response
-                    if '[/INST]' in answer:
-                        answer = answer.split('[/INST]')[-1].strip()
                 else:
                     answer = "Sorry, I couldn't generate a response."
                 
