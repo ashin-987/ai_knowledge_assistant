@@ -10,7 +10,7 @@ import os
 import streamlit as st
 
 class RAGEngine:
-    def __init__(self, vector_store: VectorStore, model_name="HuggingFaceH4/zephyr-7b-beta"):
+    def __init__(self, vector_store: VectorStore, model_name = "google/flan-t5-base"):
         """
         Initialize the RAG engine with Hugging Face API.
         
@@ -68,17 +68,23 @@ class RAGEngine:
         context = "\n\n".join(context_parts)
         
         # Step 3: Create prompt (improved format for better models)
-        prompt = f"""<|system|>
-You are a helpful AI assistant. Answer questions using ONLY the provided context.
-If the answer is not in the context, say "I don't have enough information to answer that."
-</s>
-<|user|>
+        prompt = f"""
+You are a helpful AI assistant.
+
+Answer the question using ONLY the context below.
+
 Context:
 {context}
 
-Question: {query}
-</s>
-<|assistant|>"""
+Question:
+{query}
+
+Instructions:
+- If answer not found, say "I don't have enough information"
+- Be concise and clear
+
+Answer:
+"""
 
         # Step 4: Call Hugging Face API
         print("🤖 Generating answer...")
@@ -90,11 +96,8 @@ Question: {query}
             payload = {
                 "inputs": prompt,
                 "parameters": {
-                    "max_new_tokens": 500,
-                    "temperature": 0.7,
-                    "top_p": 0.95,
-                    "do_sample": True,
-                    "return_full_text": False  # Important: don't return the prompt!
+                    "max_new_tokens": 200,
+                    "temperature": 0.3
                 }
             }
             
@@ -114,10 +117,7 @@ Question: {query}
                 # Extract generated text
                 if isinstance(result, list) and len(result) > 0:
                     answer = result[0].get('generated_text', '')
-                    
-                    # Clean up: Remove prompt if it's still there
-                    if '<|assistant|>' in answer:
-                        answer = answer.split('<|assistant|>')[-1].strip()
+
                     
                     # Remove any remaining prompt artifacts
                     answer = answer.replace('</s>', '').strip()
