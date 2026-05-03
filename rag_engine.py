@@ -107,20 +107,37 @@ Answer:
                 json=payload,
                 timeout=30
             )
-            
-            # Debug: Print response for troubleshooting
+
             print(f"API Response Status: {response.status_code}")
-            
-            if response.status_code == 200:
-                try:
-                    result = response.json()
-                except:
-                    return {
-                        'answer': f"⚠️ Invalid response from API:\n{response.text}",
-                        'sources': [],
-                        'retrieved_chunks': 0,
-                        'error': 'Invalid JSON response'
-                    }
+
+# ❌ Handle non-200 first
+            if response.status_code != 200:
+                return {
+                    'answer': f"❌ API Error {response.status_code}:\n{response.text}",
+                    'sources': [],
+                    'retrieved_chunks': 0,
+                    'error': f"HTTP {response.status_code}"
+                }
+
+# 🔥 NEW: Handle EMPTY response (this is your current bug)
+            if not response.text.strip():
+                return {
+                    'answer': "⚠️ Empty response from Hugging Face API. Try again.",
+                    'sources': [],
+                    'retrieved_chunks': 0,
+                    'error': 'Empty response'
+                }
+
+# ✅ THEN parse JSON safely
+            try:
+                result = response.json()
+            except:
+                return {
+                    'answer': f"⚠️ Invalid response from API:\n{response.text}",
+                    'sources': [],
+                    'retrieved_chunks': 0,
+                    'error': 'Invalid JSON response'
+                }
 
                 # Extract generated text
                 if isinstance(result, list) and len(result) > 0:
