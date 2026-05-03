@@ -112,8 +112,16 @@ Answer:
             print(f"API Response Status: {response.status_code}")
             
             if response.status_code == 200:
-                result = response.json()
-                
+                try:
+                    result = response.json()
+                except:
+                    return {
+                        'answer': f"⚠️ Invalid response from API:\n{response.text}",
+                        'sources': [],
+                        'retrieved_chunks': 0,
+                        'error': 'Invalid JSON response'
+                    }
+
                 # Extract generated text
                 if isinstance(result, list) and len(result) > 0:
                     answer = result[0].get('generated_text', '')
