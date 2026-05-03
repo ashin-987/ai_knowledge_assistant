@@ -10,7 +10,7 @@ import os
 import streamlit as st
 
 class RAGEngine:
-    def __init__(self, vector_store: VectorStore, model_name = "google/flan-t5-base"):
+    def __init__(self, vector_store: VectorStore, model_name = "distilgpt2"):
         """
         Initialize the RAG engine with Hugging Face API.
         
