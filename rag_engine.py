@@ -10,7 +10,7 @@ import os
 import streamlit as st
 
 class RAGEngine:
-    def __init__(self, vector_store: VectorStore, model_name = "distilgpt2"):
+    def __init__(self, vector_store: VectorStore, model_name = "HuggingFaceH4/zephyr-7b-beta"):
         """
         Initialize the RAG engine with Hugging Face API.
         
@@ -20,7 +20,7 @@ class RAGEngine:
         """
         self.vector_store = vector_store
         self.model_name = model_name
-        self.api_url = f"https://api-inference.huggingface.co/models/{model_name}"
+        self.api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
         
         # Get API token from Streamlit secrets (not .env!)
         try:
@@ -94,14 +94,8 @@ Answer:
                 headers["Authorization"] = f"Bearer {self.api_token}"
             
             payload = {
-                "inputs": prompt,
-                "parameters": {
-                    "max_new_tokens": 200,
-                    "temperature": 0.3
-                }
+                "inputs": prompt
             }
-            
-            
             
             response = requests.post(
                 self.api_url,
