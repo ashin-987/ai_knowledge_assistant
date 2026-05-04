@@ -1,6 +1,6 @@
 """
-Streamlit Web Interface - Cloud Version (FIXED)
-Improved error handling and secrets management
+Streamlit Web Interface - Cloud Version (FIXED v2)
+Added model selection and testing capabilities
 """
 
 import streamlit as st
@@ -38,6 +38,12 @@ st.markdown("""
         border-left: 4px solid #4caf50;
         margin: 1rem 0;
     }
+    .model-card {
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        background-color: #f5f5f5;
+        margin: 0.5rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -53,6 +59,9 @@ if 'rag_engine' not in st.session_state:
 
 if 'documents_processed' not in st.session_state:
     st.session_state.documents_processed = False
+
+if 'selected_model' not in st.session_state:
+    st.session_state.selected_model = "google/flan-t5-base"
 
 # Check for API token
 def check_api_token():
@@ -82,34 +91,64 @@ if not has_token:
 
 # Sidebar
 with st.sidebar:
-    st.header("📁 Document Management")
+    st.header("⚙️ Configuration")
     
     # API token status
     if has_token:
         st.success("✅ API Token: Configured")
     else:
         st.error("❌ API Token: Missing")
-        with st.expander("🔧 How to configure token"):
-            st.markdown("""
-            **Streamlit Cloud Setup:**
-            1. Go to your [Streamlit Cloud dashboard](https://share.streamlit.io/)
-            2. Click on your app
-            3. Settings → Secrets
-            4. Add this:
-            ```toml
-            HUGGINGFACE_TOKEN = "hf_your_token_here"
-            ```
+    
+    st.divider()
+    
+    # Model Selection
+    st.subheader("🤖 AI Model Selection")
+    
+    model_options = {
+        "google/flan-t5-base": "🚀 Flan-T5 Base (Fast, Recommended)",
+        "google/flan-t5-large": "⚡ Flan-T5 Large (Better Quality)",
+        "mistralai/Mistral-7B-Instruct-v0.1": "🎯 Mistral 7B (High Quality)",
+        "HuggingFaceH4/zephyr-7b-beta": "🔬 Zephyr 7B (Experimental)"
+    }
+    
+    selected_model = st.selectbox(
+        "Choose AI Model",
+        options=list(model_options.keys()),
+        format_func=lambda x: model_options[x],
+        index=0,
+        help="Flan-T5 Base is fastest and most reliable. Others may take time to load."
+    )
+    
+    # Test Model button
+    if st.button("🧪 Test Selected Model", use_container_width=True):
+        with st.spinner(f"Testing {selected_model}..."):
+            try:
+                token = st.secrets.get("HUGGINGFACE_TOKEN", "")
+            except:
+                token = ""
             
-            **Get a free token:**
-            1. Create account at [huggingface.co](https://huggingface.co/join)
-            2. Go to Settings → Access Tokens
-            3. Create new token
-            4. Copy and paste above
-            """)
+            result = RAGEngine.test_model(selected_model, token)
+            
+            if result['status'] == 'success':
+                st.success(f"✅ {result['message']}")
+                st.session_state.selected_model = selected_model
+            elif result['status'] == 'loading':
+                st.warning(f"⏳ {result['message']}")
+            else:
+                st.error(f"❌ {result['message']}")
+    
+    # Show model info
+    if selected_model in RAGEngine.AVAILABLE_MODELS:
+        model_info = RAGEngine.AVAILABLE_MODELS[selected_model]
+        with st.expander("ℹ️ Model Info"):
+            st.markdown(f"**Name:** {model_info['name']}")
+            st.markdown(f"**Description:** {model_info['description']}")
+            st.markdown(f"**Max Tokens:** {model_info['max_tokens']}")
     
     st.divider()
     
     # File uploader
+    st.header("📁 Document Management")
     uploaded_files = st.file_uploader(
         "Upload PDF or TXT files",
         type=['pdf', 'txt'],
@@ -146,16 +185,18 @@ with st.sidebar:
                         st.session_state.vector_store = VectorStore()
                         st.session_state.vector_store.add_documents(documents)
                         
-                        # Initialize RAG engine
+                        # Initialize RAG engine with selected model
                         st.session_state.rag_engine = RAGEngine(
-                            st.session_state.vector_store
+                            st.session_state.vector_store,
+                            model_name=selected_model
                         )
+                        st.session_state.selected_model = selected_model
                         st.session_state.documents_processed = True
                         
                         stats = st.session_state.vector_store.get_stats()
                         st.success(
                             f"✅ Processed {len(uploaded_files)} files "
-                            f"({stats['total_chunks']} chunks)"
+                            f"({stats['total_chunks']} chunks) with {model_options[selected_model]}"
                         )
                     else:
                         st.error("❌ No content found in files")
@@ -175,6 +216,8 @@ with st.sidebar:
             st.metric("Chunks", stats['total_chunks'])
         with col2:
             st.metric("Messages", len(st.session_state.messages))
+        
+        st.info(f"🤖 Using: {model_options[st.session_state.selected_model]}")
         
         # Clear buttons
         st.divider()
@@ -197,9 +240,10 @@ with st.sidebar:
     st.subheader("ℹ️ How to Use")
     st.markdown("""
     1. **Configure** API token in Streamlit secrets
-    2. **Upload** your PDF/TXT files
-    3. Click **Process Documents**
-    4. **Ask questions** in the chat!
+    2. **Test** your selected AI model
+    3. **Upload** your PDF/TXT files
+    4. Click **Process Documents**
+    5. **Ask questions** in the chat!
     
     **Example Questions:**
     - "Summarize the main points"
@@ -236,6 +280,43 @@ if not st.session_state.documents_processed:
         st.markdown("### 🚀 Fast")
         st.markdown("Semantic search with RAG")
     
+    # Model comparison
+    st.divider()
+    st.subheader("🤖 Available Models")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        **🚀 Flan-T5 Base** *(Recommended)*
+        - Fast response time
+        - Always available
+        - Good for most Q&A tasks
+        - Best for beginners
+        """)
+        
+        st.markdown("""
+        **⚡ Flan-T5 Large**
+        - Better quality answers
+        - Slightly slower
+        - More detailed responses
+        """)
+    
+    with col2:
+        st.markdown("""
+        **🎯 Mistral 7B Instruct**
+        - High quality responses
+        - May take time to load
+        - Great for complex questions
+        """)
+        
+        st.markdown("""
+        **🔬 Zephyr 7B Beta**
+        - Experimental
+        - May not always be available
+        - Advanced use only
+        """)
+    
 else:
     # Display chat history
     for message in st.session_state.messages:
@@ -269,27 +350,22 @@ else:
             if 'error' in result:
                 error_type = result.get('error', '')
                 
-                if "404" in error_type:
-                    st.error("❌ **Model Not Found Error**")
+                if "Model Not Found" in error_type:
+                    st.error("❌ **Model Not Available**")
                     st.markdown(result['answer'])
-                    st.info("""
-                    **Possible fixes:**
-                    1. Update `rag_engine.py` to use a different model
-                    2. Try: `HuggingFaceH4/zephyr-7b-beta`
-                    3. Or: `mistralai/Mistral-7B-Instruct-v0.1`
-                    """)
+                    st.info("💡 Try selecting a different model in the sidebar (Flan-T5 Base is most reliable)")
                     
-                elif "loading" in error_type.lower():
+                elif "Model Loading" in error_type:
                     st.warning(result['answer'])
-                    st.info("⏳ The AI model is warming up. Wait 20 seconds and try again.")
+                    st.info("⏳ Wait 20-30 seconds, then try your question again.")
                     
-                elif "401" in error_type:
+                elif "Authentication" in error_type:
                     st.error("❌ **Authentication Error**")
                     st.markdown(result['answer'])
                     st.info("Check your Hugging Face token in Streamlit Cloud secrets")
                     
                 else:
-                    st.error(f"⚠️ Error: {result['answer']}")
+                    st.error(f"⚠️ {result['answer']}")
                     with st.expander("🔍 Debug Info"):
                         st.code(result.get('error', 'Unknown error'))
             else:
