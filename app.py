@@ -106,9 +106,7 @@ with st.sidebar:
     
     model_options = {
         "google/flan-t5-base": "🚀 Flan-T5 Base (Fast, Recommended)",
-        "google/flan-t5-large": "⚡ Flan-T5 Large (Better Quality)",
-        "mistralai/Mistral-7B-Instruct-v0.1": "🎯 Mistral 7B (High Quality)",
-        "HuggingFaceH4/zephyr-7b-beta": "🔬 Zephyr 7B (Experimental)"
+        "google/flan-t5-large": "⚡ Flan-T5 Large (Better Quality)"
     }
     
     selected_model = st.selectbox(
