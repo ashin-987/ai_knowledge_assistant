@@ -33,7 +33,7 @@ class RAGEngine:
             model_name: Hugging Face model to use
         """
         self.vector_store = vector_store
-        self.model_name = "google/flan-t5-base"
+        self.model_name = model_name
         self.api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
         
         # Get API token from Streamlit secrets
@@ -170,95 +170,63 @@ Answer:"""
                 self.api_url,
                 headers=headers,
                 json=payload,
-                timeout=30
+                timeout=60
             )
 
-            print(f"API Response Status: {response.status_code}")
 
-            # Handle different response codes
-            if response.status_code == 503:
-                return {
-                    'answer': "⏳ The AI model is currently loading. Please wait 20-30 seconds and try again.",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': 'Model Loading'
-                }
-            
-            if response.status_code == 404:
-                return {
-                    'answer': f"❌ Model '{self.model_name}' not found or unavailable.\n\nPlease select a different model in the sidebar.",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': 'Model Not Found'
-                }
-            
-            if response.status_code == 401:
-                return {
-                    'answer': "❌ Authentication failed. Please check your Hugging Face token in Streamlit secrets.",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': 'Authentication Error'
-                }
-            
-            if response.status_code != 200:
-                return {
-                    'answer': f"❌ API Error {response.status_code}:\n{response.text[:300]}",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': f"HTTP {response.status_code}"
-                }
+            print("STATUS:", response.status_code)
+            print("RAW RESPONSE:", response.text[:500])
 
-            # Check for empty response
-            if not response.text.strip():
-                return {
-                    'answer': "⚠️ Empty response from API. Try again.",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': 'Empty response'
-                }
-
-            # Parse JSON response
+# Try parsing JSON safely FIRST
             try:
                 result = response.json()
-            except:
+            except Exception:
                 return {
-                    'answer': f"⚠️ Invalid JSON response:\n{response.text[:300]}",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': 'Invalid JSON'
+                    "answer": f"⚠️ Non-JSON response from API:\n{response.text[:300]}",
+                    "sources": [],
+                    "retrieved_chunks": 0,
+                    "error": f"Invalid JSON ({response.status_code})"
                 }
 
-            # Extract answer based on response structure
-            answer = ""
-            
-            if isinstance(result, list) and len(result) > 0:
-                # Most models return a list
-                if isinstance(result[0], dict):
-                    answer = result[0].get('generated_text', '')
+# Handle loading
+            if response.status_code == 503:
+                return {
+                    "answer": "⏳ Model is loading. Please wait 20–30 seconds and try again.",
+                    "sources": [],
+                    "retrieved_chunks": 0,
+                    "error": "Model loading"
+                }
+
+# Handle auth error
+            if response.status_code == 401:
+                return {
+                    "answer": "❌ Invalid Hugging Face token. Check Streamlit secrets.",
+                    "sources": [],
+                    "retrieved_chunks": 0,
+                    "error": "Authentication failed"
+                }
+
+# SUCCESS
+            if response.status_code == 200:
+                if isinstance(result, list) and len(result) > 0:
+                    answer = result[0].get("generated_text", "")
                 else:
-                    answer = str(result[0])
-                    
-            elif isinstance(result, dict):
-                # Some models return a dict
-                answer = result.get('generated_text') or result.get('error') or str(result)
-            else:
-                answer = str(result)
+                    answer = str(result)
 
-            # Clean up answer
-            answer = answer.replace('</s>', '').replace('<pad>', '').strip()
-            
-            # Remove the prompt from the answer if model repeated it
-            if prompt in answer:
-                answer = answer.replace(prompt, '').strip()
+                sources = list(set([doc['source'] for doc in retrieved_docs]))
 
-            # Extract sources
-            sources = list(set([doc['source'] for doc in retrieved_docs]))
+                return {
+                    "answer": answer.strip(),
+                    "sources": sources,
+                    "retrieved_chunks": len(retrieved_docs)
+                }
 
+# EVERYTHING ELSE (DON'T assume model error)
             return {
-                'answer': answer if answer else "I don't have enough information to answer that.",
-                'sources': sources,
-                'retrieved_chunks': len(retrieved_docs),
-                'context': context
+                "answer": f"❌ API Error {response.status_code}:\n{response.text[:300]}",
+                "sources": [],
+                "retrieved_chunks": 0,
+                "error": response.text
             }
                 
         except requests.exceptions.Timeout:
