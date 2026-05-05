@@ -17,20 +17,10 @@ class RAGEngine:
             "description": "Fast, reliable, good for Q&A",
             "max_tokens": 512
         },
-        "mistralai/Mistral-7B-Instruct-v0.1": {
-            "name": "Mistral 7B Instruct",
-            "description": "High quality, may take time to load",
-            "max_tokens": 1024
-        },
         "google/flan-t5-large": {
             "name": "Google Flan-T5 Large",
             "description": "Better quality than base, still fast",
             "max_tokens": 512
-        },
-        "HuggingFaceH4/zephyr-7b-beta": {
-            "name": "Zephyr 7B Beta",
-            "description": "High quality but may not always be available",
-            "max_tokens": 1024
         }
     }
     
@@ -43,7 +33,7 @@ class RAGEngine:
             model_name: Hugging Face model to use
         """
         self.vector_store = vector_store
-        self.model_name = model_name
+        self.model_name = "google/flan-t5-base"
         self.api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
         
         # Get API token from Streamlit secrets
