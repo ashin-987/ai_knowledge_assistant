@@ -35,6 +35,7 @@ class RAGEngine:
         self.vector_store = vector_store
         self.model_name = model_name
         self.api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
+        print("API URL BEING USED:", self.api_url)
         
         # Get API token from Streamlit secrets
         try:
