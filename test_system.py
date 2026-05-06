@@ -81,7 +81,18 @@ def test_pipeline():
     
     # Step 5: Test RAG engine
     print("\n\n🤖 Step 5: Testing RAG engine...")
-    print("(This will call Ollama - make sure it's running!)")
+    print("(This will call Hugging Face API - make sure you have a valid token!)")
+    
+    # Check for API token
+    api_token = os.getenv("HUGGINGFACE_TOKEN", "")
+    if not api_token or not api_token.startswith("hf_"):
+        print("\n⚠️ WARNING: No valid Hugging Face token found!")
+        print("Set HUGGINGFACE_TOKEN environment variable or add to .env file")
+        print("Get a free token at: https://huggingface.co/settings/tokens")
+        print("\nSkipping RAG engine test...")
+        return
+    
+    print(f"✅ Found API token: {api_token[:10]}...")
     
     rag_engine = RAGEngine(vector_store)
     
@@ -101,9 +112,10 @@ def test_pipeline():
         if 'error' in result:
             print(f"\n❌ Error: {result['error']}")
             print("\nMake sure:")
-            print("1. Ollama is installed")
-            print("2. Run: ollama pull llama3.2")
-            print("3. Ollama service is running")
+            print("1. HUGGINGFACE_TOKEN is set correctly")
+            print("2. You have internet connection")
+            print("3. The selected model is available")
+            print("4. Get a token at: https://huggingface.co/settings/tokens")
             break
         
         print(f"\n💬 Answer:\n{result['answer']}")
@@ -128,5 +140,6 @@ if __name__ == "__main__":
         print(f"\n❌ Test failed with error: {e}")
         print("\nTroubleshooting tips:")
         print("1. Make sure all packages are installed: pip install -r requirements.txt")
-        print("2. Check if Ollama is running")
-        print("3. Verify Python version is 3.9+")
+        print("2. Set HUGGINGFACE_TOKEN environment variable")
+        print("3. Check internet connection")
+        print("4. Verify Python version is 3.9+")

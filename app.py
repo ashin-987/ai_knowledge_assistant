@@ -61,7 +61,7 @@ if 'documents_processed' not in st.session_state:
     st.session_state.documents_processed = False
 
 if 'selected_model' not in st.session_state:
-    st.session_state.selected_model = "google/flan-t5-base"
+    st.session_state.selected_model = "meta-llama/Llama-3.2-3B-Instruct"  # Match rag_engine.py default
 
 # Check for API token
 def check_api_token():
@@ -104,17 +104,22 @@ with st.sidebar:
     # Model Selection
     st.subheader("🤖 AI Model Selection")
     
+    # Get models dynamically from RAGEngine
     model_options = {
-        "google/flan-t5-base": "🚀 Flan-T5 Base (Fast, Recommended)",
-        "google/flan-t5-large": "⚡ Flan-T5 Large (Better Quality)"
+        model_id: f"{info['name']}" 
+        for model_id, info in RAGEngine.AVAILABLE_MODELS.items()
     }
+    
+    # Default to Llama 3.2 (recommended in rag_engine.py)
+    default_model = "meta-llama/Llama-3.2-3B-Instruct"
+    default_index = list(model_options.keys()).index(default_model) if default_model in model_options else 0
     
     selected_model = st.selectbox(
         "Choose AI Model",
         options=list(model_options.keys()),
         format_func=lambda x: model_options[x],
-        index=0,
-        help="Flan-T5 Base is fastest and most reliable. Others may take time to load."
+        index=default_index,
+        help="Choose the AI model for answering questions. Different models have different speeds and capabilities."
     )
     
     # Test Model button
@@ -192,9 +197,10 @@ with st.sidebar:
                         st.session_state.documents_processed = True
                         
                         stats = st.session_state.vector_store.get_stats()
+                        model_name = RAGEngine.AVAILABLE_MODELS.get(selected_model, {}).get('name', selected_model)
                         st.success(
                             f"✅ Processed {len(uploaded_files)} files "
-                            f"({stats['total_chunks']} chunks) with {model_options[selected_model]}"
+                            f"({stats['total_chunks']} chunks) with {model_name}"
                         )
                     else:
                         st.error("❌ No content found in files")
@@ -215,7 +221,7 @@ with st.sidebar:
         with col2:
             st.metric("Messages", len(st.session_state.messages))
         
-        st.info(f"🤖 Using: {model_options[st.session_state.selected_model]}")
+        st.info(f"🤖 Using: {RAGEngine.AVAILABLE_MODELS.get(st.session_state.selected_model, {}).get('name', st.session_state.selected_model)}")
         
         # Clear buttons
         st.divider()
@@ -282,38 +288,12 @@ if not st.session_state.documents_processed:
     st.divider()
     st.subheader("🤖 Available Models")
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("""
-        **🚀 Flan-T5 Base** *(Recommended)*
-        - Fast response time
-        - Always available
-        - Good for most Q&A tasks
-        - Best for beginners
-        """)
-        
-        st.markdown("""
-        **⚡ Flan-T5 Large**
-        - Better quality answers
-        - Slightly slower
-        - More detailed responses
-        """)
-    
-    with col2:
-        st.markdown("""
-        **🎯 Mistral 7B Instruct**
-        - High quality responses
-        - May take time to load
-        - Great for complex questions
-        """)
-        
-        st.markdown("""
-        **🔬 Zephyr 7B Beta**
-        - Experimental
-        - May not always be available
-        - Advanced use only
-        """)
+    # Display models dynamically from RAGEngine
+    for model_id, model_info in RAGEngine.AVAILABLE_MODELS.items():
+        with st.expander(f"**{model_info['name']}**" + (" *(Recommended)*" if "RECOMMENDED" in model_info['description'] else "")):
+            st.markdown(f"**Description:** {model_info['description']}")
+            st.markdown(f"**Max Tokens:** {model_info['max_tokens']}")
+            st.markdown(f"**Model ID:** `{model_id}`")
     
 else:
     # Display chat history
