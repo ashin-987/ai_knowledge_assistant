@@ -61,7 +61,7 @@ if 'documents_processed' not in st.session_state:
     st.session_state.documents_processed = False
 
 if 'selected_model' not in st.session_state:
-    st.session_state.selected_model = "microsoft/Phi-3.5-mini-instruct"  # Match rag_engine.py default
+    st.session_state.selected_model = "google/flan-t5-base"  # Match rag_engine.py default
 
 # Check for API token
 def check_api_token():
@@ -110,8 +110,8 @@ with st.sidebar:
         for model_id, info in RAGEngine.AVAILABLE_MODELS.items()
     }
     
-    # Default to Phi-3.5 (recommended in rag_engine.py)
-    default_model = "microsoft/Phi-3.5-mini-instruct"
+    # Default to Flan-T5 Base (recommended in rag_engine.py)
+    default_model = "google/flan-t5-base"
     default_index = list(model_options.keys()).index(default_model) if default_model in model_options else 0
     
     selected_model = st.selectbox(
@@ -331,7 +331,7 @@ else:
                 if "Model Not Found" in error_type:
                     st.error("❌ **Model Not Available**")
                     st.markdown(result['answer'])
-                    st.info("💡 Try selecting a different model in the sidebar (Flan-T5 Base is most reliable)")
+                    st.info("💡 Try selecting a different model in the sidebar")
                     
                 elif "Model Loading" in error_type:
                     st.warning(result['answer'])

@@ -12,35 +12,35 @@ import time
 import json
 
 class RAGEngine:
-    # Working models verified with serverless inference API
+    # Working models VERIFIED with serverless inference API (tested and working!)
     AVAILABLE_MODELS = {
-        "meta-llama/Llama-3.2-3B-Instruct": {
-            "name": "Llama 3.2 3B Instruct",
-            "description": "Fast, instruction-following model - RECOMMENDED",
+        "google/flan-t5-base": {
+            "name": "Google Flan-T5 Base",
+            "description": "Fast, reliable, always available - RECOMMENDED",
             "max_tokens": 512,
             "api_type": "text_generation"
         },
-        "microsoft/Phi-3.5-mini-instruct": {
-            "name": "Phi-3.5 Mini Instruct",
-            "description": "Compact, efficient, good quality",
+        "google/flan-t5-small": {
+            "name": "Google Flan-T5 Small",
+            "description": "Very fast, good for simple questions",
             "max_tokens": 512,
             "api_type": "text_generation"
         },
-        "HuggingFaceH4/zephyr-7b-beta": {
-            "name": "Zephyr 7B Beta",
-            "description": "Powerful open-source model",
+        "facebook/bart-large-cnn": {
+            "name": "BART Large CNN",
+            "description": "Good for summarization and Q&A",
             "max_tokens": 512,
             "api_type": "text_generation"
         },
-        "google/flan-t5-large": {
-            "name": "Google Flan-T5 Large",
-            "description": "Reliable text generation",
+        "t5-small": {
+            "name": "T5 Small",
+            "description": "Lightweight, quick responses",
             "max_tokens": 512,
             "api_type": "text_generation"
         }
     }
     
-    def __init__(self, vector_store: VectorStore, model_name="microsoft/Phi-3.5-mini-instruct"):
+    def __init__(self, vector_store: VectorStore, model_name="google/flan-t5-base"):
         """
         Initialize the RAG engine with Hugging Face Serverless Inference API.
         
