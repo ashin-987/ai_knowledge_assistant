@@ -61,7 +61,7 @@ if 'documents_processed' not in st.session_state:
     st.session_state.documents_processed = False
 
 if 'selected_model' not in st.session_state:
-    st.session_state.selected_model = "meta-llama/Llama-3.2-3B-Instruct"  # Match rag_engine.py default
+    st.session_state.selected_model = "microsoft/Phi-3.5-mini-instruct"  # Match rag_engine.py default
 
 # Check for API token
 def check_api_token():
@@ -110,8 +110,8 @@ with st.sidebar:
         for model_id, info in RAGEngine.AVAILABLE_MODELS.items()
     }
     
-    # Default to Llama 3.2 (recommended in rag_engine.py)
-    default_model = "meta-llama/Llama-3.2-3B-Instruct"
+    # Default to Phi-3.5 (recommended in rag_engine.py)
+    default_model = "microsoft/Phi-3.5-mini-instruct"
     default_index = list(model_options.keys()).index(default_model) if default_model in model_options else 0
     
     selected_model = st.selectbox(
