@@ -61,7 +61,7 @@ if 'documents_processed' not in st.session_state:
     st.session_state.documents_processed = False
 
 if 'selected_model' not in st.session_state:
-    st.session_state.selected_model = "google/flan-t5-base"  # Match rag_engine.py default
+    st.session_state.selected_model = "microsoft/Phi-3-mini-4k-instruct"  # Match rag_engine.py default
 
 # Check for API token
 def check_api_token():
@@ -111,7 +111,7 @@ with st.sidebar:
     }
     
     # Default to Flan-T5 Base (recommended in rag_engine.py)
-    default_model = "google/flan-t5-base"
+    default_model = "microsoft/Phi-3-mini-4k-instruct"
     default_index = list(model_options.keys()).index(default_model) if default_model in model_options else 0
     
     selected_model = st.selectbox(

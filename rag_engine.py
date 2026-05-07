@@ -14,33 +14,15 @@ import json
 class RAGEngine:
     # Working models VERIFIED with serverless inference API (tested and working!)
     AVAILABLE_MODELS = {
-        "google/flan-t5-base": {
-            "name": "Google Flan-T5 Base",
-            "description": "Fast, reliable, always available - RECOMMENDED",
+        "microsoft/Phi-3-mini-4k-instruct": {
+            "name": "Llama 3.1 8B Instruct",
+            "description": "Modern instruction model",
             "max_tokens": 512,
             "api_type": "text_generation"
         },
-        "google/flan-t5-small": {
-            "name": "Google Flan-T5 Small",
-            "description": "Very fast, good for simple questions",
-            "max_tokens": 512,
-            "api_type": "text_generation"
-        },
-        "facebook/bart-large-cnn": {
-            "name": "BART Large CNN",
-            "description": "Good for summarization and Q&A",
-            "max_tokens": 512,
-            "api_type": "text_generation"
-        },
-        "t5-small": {
-            "name": "T5 Small",
-            "description": "Lightweight, quick responses",
-            "max_tokens": 512,
-            "api_type": "text_generation"
-        }
     }
     
-    def __init__(self, vector_store: VectorStore, model_name="google/flan-t5-base"):
+    def __init__(self, vector_store: VectorStore, model_name="microsoft/Phi-3-mini-4k-instruct"):
         """
         Initialize the RAG engine with Hugging Face Serverless Inference API.
         
@@ -54,20 +36,23 @@ class RAGEngine:
         self.api_type = self.model_info.get("api_type", "text_generation")
         
         # Use the correct serverless inference endpoint
-        self.api_url = f"https://api-inference.huggingface.co/models/{self.model_name}"
+        self.api_url = f"https://router.huggingface.co/hf-inference/models/{model_name}"
         print(f"🔗 API URL: {self.api_url}")
         
         # Get API token from Streamlit secrets
         try:
+    # Try Streamlit secrets first
             self.api_token = st.secrets["HUGGINGFACE_TOKEN"]
-            if self.api_token and len(self.api_token) > 10:
-                print("✅ API Token found")
+            print("✅ Using Streamlit secrets token")
+
+        except Exception:
+    # Fallback to .env/local environment
+            self.api_token = os.getenv("HUGGINGFACE_TOKEN", "")
+
+            if self.api_token:
+                print("✅ Using .env token")
             else:
-                print("⚠️ API Token looks invalid")
-                self.api_token = ""
-        except Exception as e:
-            print(f"⚠️ Could not get token: {e}")
-            self.api_token = ""
+                print("⚠️ No Hugging Face token found")
         
         print(f"🤖 RAG Engine initialized with: {model_name}")
     

@@ -3,6 +3,9 @@ Test Script - Verify everything works before building UI
 Author: Your Name
 """
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from document_processor import DocumentProcessor
 from vector_store import VectorStore
 from rag_engine import RAGEngine
