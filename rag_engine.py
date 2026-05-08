@@ -30,7 +30,7 @@ class RAGEngine:
         self.vector_store = vector_store
         self.model_name = model_name
 
-    # Get API key
+        # Get API key
         try:
             self.api_key = st.secrets["GROQ_API_KEY"]
             print("✅ Using Streamlit secrets Groq key")
@@ -42,7 +42,7 @@ class RAGEngine:
             else:
                 print("⚠️ No Groq API key found")
 
-    # Initialize Groq client
+        # Initialize Groq client
         if not self.api_key:
             raise ValueError("Groq API key missing")
 
@@ -52,13 +52,13 @@ class RAGEngine:
     
     
     
-    def generate_answer(self, query: str, n_results: int = 3) -> Dict:
+    def generate_answer(self, query: str, n_results: int = 5) -> Dict:
         """
         Generate an answer using RAG with Groq API.
         
         Args:
             query: User's question
-            n_results: Number of chunks to retrieve
+            n_results: Number of chunks to retrieve (increased from 2 to 5)
             
         Returns:
             Dictionary with answer, sources, and metadata
@@ -101,7 +101,7 @@ Answer:
 """
 
         # Step 4: Call API with retries
-                # Step 4: Generate answer with Groq
+        # Step 4: Generate answer with Groq
         try:
 
             print("🚀 Calling Groq API...")

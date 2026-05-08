@@ -31,7 +31,7 @@ class VectorStore:
             name="knowledge_base",
             metadata={"description": "Document embeddings"}
         )
-        
+        print("📊 Existing chunks:", self.collection.count())
         print("✅ Vector Store ready!")
     
     def add_documents(self, documents: List[Dict]):
@@ -91,17 +91,24 @@ class VectorStore:
             query_embeddings=query_embedding,
             n_results=n_results
         )
-        
+
         # Format results
         formatted_results = []
+
         if results['documents'] and results['documents'][0]:
             for i in range(len(results['documents'][0])):
+                distance = results['distances'][0][i]
+
+                # Optional: filter out extremely weak matches (distance > 1.5 is very dissimilar)
+                if distance > 1.5:
+                    continue
+
                 formatted_results.append({
                     'text': results['documents'][0][i],
                     'source': results['metadatas'][0][i]['source'],
-                    'distance': results['distances'][0][i]
+                    'distance': distance
                 })
-        
+
         return formatted_results
     
     def get_stats(self):
