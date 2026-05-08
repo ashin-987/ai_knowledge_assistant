@@ -61,16 +61,27 @@ if 'documents_processed' not in st.session_state:
     st.session_state.documents_processed = False
 
 if 'selected_model' not in st.session_state:
-    st.session_state.selected_model = "microsoft/Phi-3-mini-4k-instruct"  # Match rag_engine.py default
+    st.session_state.selected_model = "llama-3.1-8b-instant"  # Match rag_engine.py default
 
 # Check for API token
+from dotenv import load_dotenv
+
+load_dotenv()
+
 def check_api_token():
-    """Check if Hugging Face token is configured"""
+    """Check if Groq API key is configured"""
+
+    # First check Streamlit Cloud secrets
     try:
-        token = st.secrets["HUGGINGFACE_TOKEN"]
-        return bool(token and token.startswith("hf_"))
+        token = st.secrets["GROQ_API_KEY"]
+        if token and token.startswith("gsk_"):
+            return True
     except:
-        return False
+        pass
+
+    # Then check local .env
+    token = os.getenv("GROQ_API_KEY", "")
+    return bool(token and token.startswith("gsk_"))
 
 has_token = check_api_token()
 
@@ -80,13 +91,13 @@ st.markdown("**Ask questions about your documents - 100% FREE & Cloud-Hosted!**"
 
 # Show token status prominently
 if not has_token:
-    st.error("⚠️ **CONFIGURATION REQUIRED:** Hugging Face token not found in Streamlit secrets!")
+    st.error("⚠️ **CONFIGURATION REQUIRED:** Groq API key not found in Streamlit secrets!")
     st.info("""
     **To fix this:**
     1. Go to [Streamlit Cloud Dashboard](https://share.streamlit.io/)
     2. Open your app settings → Secrets
-    3. Add: `HUGGINGFACE_TOKEN = "your_token_here"`
-    4. Get a free token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+    3. Add: `GROQ_API_KEY = "your_token_here"`
+    4. Get a free API key at https://console.groq.com/keys
     """)
 
 # Sidebar
@@ -111,7 +122,7 @@ with st.sidebar:
     }
     
     # Default to Flan-T5 Base (recommended in rag_engine.py)
-    default_model = "microsoft/Phi-3-mini-4k-instruct"
+    default_model = "llama-3.1-8b-instant"
     default_index = list(model_options.keys()).index(default_model) if default_model in model_options else 0
     
     selected_model = st.selectbox(
@@ -121,24 +132,6 @@ with st.sidebar:
         index=default_index,
         help="Choose the AI model for answering questions. Different models have different speeds and capabilities."
     )
-    
-    # Test Model button
-    if st.button("🧪 Test Selected Model", use_container_width=True):
-        with st.spinner(f"Testing {selected_model}..."):
-            try:
-                token = st.secrets.get("HUGGINGFACE_TOKEN", "")
-            except:
-                token = ""
-            
-            result = RAGEngine.test_model(selected_model, token)
-            
-            if result['status'] == 'success':
-                st.success(f"✅ {result['message']}")
-                st.session_state.selected_model = selected_model
-            elif result['status'] == 'loading':
-                st.warning(f"⏳ {result['message']}")
-            else:
-                st.error(f"❌ {result['message']}")
     
     # Show model info
     if selected_model in RAGEngine.AVAILABLE_MODELS:
@@ -243,11 +236,10 @@ with st.sidebar:
     st.divider()
     st.subheader("ℹ️ How to Use")
     st.markdown("""
-    1. **Configure** API token in Streamlit secrets
-    2. **Test** your selected AI model
-    3. **Upload** your PDF/TXT files
-    4. Click **Process Documents**
-    5. **Ask questions** in the chat!
+    1. **Configure** Groq API key in Streamlit secrets
+    2. **Upload** your PDF/TXT files
+    3. Click **Process Documents**
+    4. **Ask questions** in the chat!
     
     **Example Questions:**
     - "Summarize the main points"
@@ -259,7 +251,7 @@ with st.sidebar:
     # Footer
     st.divider()
     st.caption("💡 100% Free & Cloud-Hosted")
-    st.caption("Powered by Hugging Face")
+    st.caption("Powered by Groq")
 
 # Main chat area
 if not st.session_state.documents_processed:
@@ -267,7 +259,7 @@ if not st.session_state.documents_processed:
     if has_token:
         st.info("👈 **Get Started:** Upload documents in the sidebar and click 'Process Documents'")
     else:
-        st.warning("⚠️ **Setup Required:** Configure your Hugging Face token in Streamlit Cloud secrets (see sidebar)")
+        st.warning("⚠️ **Setup Required:** Configure your Groq API key in Streamlit Cloud secrets (see sidebar)")
     
     # Feature highlights
     col1, col2, col3 = st.columns(3)
@@ -340,7 +332,7 @@ else:
                 elif "Authentication" in error_type:
                     st.error("❌ **Authentication Error**")
                     st.markdown(result['answer'])
-                    st.info("Check your Hugging Face token in Streamlit Cloud secrets")
+                    st.info("Check your Groq API key in Streamlit Cloud secrets")
                     
                 else:
                     st.error(f"⚠️ {result['answer']}")
@@ -368,7 +360,7 @@ else:
 st.divider()
 st.markdown("""
 <div style='text-align: center; color: gray; font-size: 0.8rem;'>
-    Built with Python • ChromaDB • Sentence Transformers • Hugging Face API<br>
+    Built with Python • ChromaDB • Sentence Transformers • Groq API<br>
     <b>100% FREE • CLOUD-HOSTED • SHAREABLE</b>
 </div>
 """, unsafe_allow_html=True)

@@ -8,7 +8,7 @@ from typing import List
 import PyPDF2
 
 class DocumentProcessor:
-    def __init__(self, chunk_size=800, chunk_overlap=200):
+    def __init__(self, chunk_size=1200, chunk_overlap=300):
         """
         Initialize the document processor.
         

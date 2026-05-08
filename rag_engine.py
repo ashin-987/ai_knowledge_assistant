@@ -5,119 +5,56 @@ Uses the correct serverless inference API format
 
 from typing import Dict
 from vector_store import VectorStore
-import requests
 import os
 import streamlit as st
-import time
-import json
+from groq import Groq
 
 class RAGEngine:
     # Working models VERIFIED with serverless inference API (tested and working!)
     AVAILABLE_MODELS = {
-        "microsoft/Phi-3-mini-4k-instruct": {
-            "name": "Llama 3.1 8B Instruct",
-            "description": "Modern instruction model",
-            "max_tokens": 512,
-            "api_type": "text_generation"
+        "llama-3.1-8b-instant": {
+            "name": "Llama 3.1 8B Instant",
+            "description": "Fast Groq model",
+            "max_tokens": 512
         },
+
+        "llama3-70b-8192": {
+            "name": "Llama 3 70B",
+            "description": "More powerful Groq model",
+            "max_tokens": 1024
+        }
     }
     
-    def __init__(self, vector_store: VectorStore, model_name="microsoft/Phi-3-mini-4k-instruct"):
-        """
-        Initialize the RAG engine with Hugging Face Serverless Inference API.
-        
-        Args:
-            vector_store: The vector database
-            model_name: Hugging Face model to use
-        """
+    def __init__(self, vector_store: VectorStore, model_name="llama-3.1-8b-instant"):
+
         self.vector_store = vector_store
         self.model_name = model_name
-        self.model_info = self.AVAILABLE_MODELS.get(model_name, {})
-        self.api_type = self.model_info.get("api_type", "text_generation")
-        
-        # Use the correct serverless inference endpoint
-        self.api_url = f"https://router.huggingface.co/hf-inference/models/{model_name}"
-        print(f"🔗 API URL: {self.api_url}")
-        
-        # Get API token from Streamlit secrets
+
+    # Get API key
         try:
-    # Try Streamlit secrets first
-            self.api_token = st.secrets["HUGGINGFACE_TOKEN"]
-            print("✅ Using Streamlit secrets token")
-
+            self.api_key = st.secrets["GROQ_API_KEY"]
+            print("✅ Using Streamlit secrets Groq key")
         except Exception:
-    # Fallback to .env/local environment
-            self.api_token = os.getenv("HUGGINGFACE_TOKEN", "")
+            self.api_key = os.getenv("GROQ_API_KEY", "")
 
-            if self.api_token:
-                print("✅ Using .env token")
+            if self.api_key:
+                print("✅ Using .env Groq key")
             else:
-                print("⚠️ No Hugging Face token found")
-        
+                print("⚠️ No Groq API key found")
+
+    # Initialize Groq client
+        if not self.api_key:
+            raise ValueError("Groq API key missing")
+
+        self.client = Groq(api_key=self.api_key)
+
         print(f"🤖 RAG Engine initialized with: {model_name}")
     
-    @staticmethod
-    def test_model(model_name: str, api_token: str = "") -> Dict:
-        """
-        Test if a model is available and responding.
-        
-        Args:
-            model_name: Model identifier
-            api_token: API token
-            
-        Returns:
-            Dict with status and message
-        """
-        model_info = RAGEngine.AVAILABLE_MODELS.get(model_name, {})
-        api_type = model_info.get("api_type", "text_generation")
-        api_url = f"https://api-inference.huggingface.co/models/{model_name}"
-        
-        headers = {}
-        if api_token:
-            headers["Authorization"] = f"Bearer {api_token}"
-        
-        # Use appropriate payload based on model type
-        if api_type == "messages":
-            payload = {
-                "inputs": "Hello, how are you?",
-                "parameters": {"max_new_tokens": 50}
-            }
-        else:
-            payload = {
-                "inputs": "Hello, how are you?",
-                "parameters": {"max_length": 50}
-            }
-        
-        try:
-            response = requests.post(api_url, headers=headers, json=payload, timeout=15)
-            
-            print(f"Test response status: {response.status_code}")
-            print(f"Test response: {response.text[:200]}")
-            
-            if response.status_code == 200:
-                # Try to parse response
-                try:
-                    result = response.json()
-                    return {"status": "success", "message": "Model is working!", "response": result}
-                except:
-                    return {"status": "success", "message": "Model responded (non-JSON)", "response": response.text[:100]}
-            elif response.status_code == 503:
-                return {"status": "loading", "message": "Model is loading, try again in 20-30 seconds"}
-            elif response.status_code == 404:
-                return {"status": "error", "message": f"Model not found at {api_url}"}
-            elif response.status_code == 401 or response.status_code == 403:
-                return {"status": "error", "message": "Authentication failed - check your token"}
-            else:
-                return {"status": "error", "message": f"HTTP {response.status_code}: {response.text[:200]}"}
-                
-        except requests.exceptions.Timeout:
-            return {"status": "timeout", "message": "Request timed out - model might be busy"}
-        except Exception as e:
-            return {"status": "error", "message": f"Error: {str(e)}"}
+    
     
     def generate_answer(self, query: str, n_results: int = 3) -> Dict:
         """
-        Generate an answer using RAG with Hugging Face API.
+        Generate an answer using RAG with Groq API.
         
         Args:
             query: User's question
@@ -149,169 +86,54 @@ class RAGEngine:
         context = "\n\n".join(context_parts)
         
         # Step 3: Create prompt based on model type
-        if self.api_type == "messages":
-            # For instruction-following models (Llama, Phi, Zephyr)
-            prompt = f"""You are a helpful AI assistant. Answer the question using ONLY the information provided in the context below.
+        prompt = f"""
+You are a helpful AI assistant.
+
+Answer the question using ONLY the context below.
 
 Context:
 {context}
 
-Question: {query}
+Question:
+{query}
 
-Provide a clear, concise answer based solely on the context. If the context doesn't contain enough information, say "I don't have enough information to answer that."
-
-Answer:"""
-        else:
-            # For text generation models (T5, BART)
-            prompt = f"""Context: {context}
-
-Question: {query}
-
-Answer based on the context:"""
+Answer:
+"""
 
         # Step 4: Call API with retries
-        max_retries = 2
-        for attempt in range(max_retries):
-            try:
-                headers = {"Content-Type": "application/json"}
-                if self.api_token:
-                    headers["Authorization"] = f"Bearer {self.api_token}"
-                
-                max_tokens = self.model_info.get("max_tokens", 512)
-                
-                # Prepare payload
-                payload = {
-                    "inputs": prompt,
-                    "parameters": {
-                        "max_new_tokens": max_tokens,
-                        "temperature": 0.7,
-                        "top_p": 0.9,
-                        "do_sample": True,
-                        "return_full_text": False
+                # Step 4: Generate answer with Groq
+        try:
+
+            print("🚀 Calling Groq API...")
+
+            completion = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
                     }
-                }
-                
-                print(f"🚀 Calling API (attempt {attempt + 1}/{max_retries})...")
-                print(f"📍 URL: {self.api_url}")
-                
-                response = requests.post(
-                    self.api_url,
-                    headers=headers,
-                    json=payload,
-                    timeout=60
-                )
-                
-                print(f"📊 Status: {response.status_code}")
-                print(f"📝 Response preview: {response.text[:200]}")
-                
-                # Handle model loading
-                if response.status_code == 503:
-                    error_data = {}
-                    try:
-                        error_data = response.json()
-                    except:
-                        pass
-                    
-                    if "loading" in str(error_data).lower() or "warming up" in response.text.lower():
-                        if attempt < max_retries - 1:
-                            print(f"⏳ Model loading, waiting 20 seconds...")
-                            time.sleep(20)
-                            continue
-                        else:
-                            return {
-                                "answer": "⏳ Model is still loading. Please wait 30 seconds and try again.",
-                                "sources": [],
-                                "retrieved_chunks": 0,
-                                "error": "Model loading"
-                            }
-                
-                # Handle authentication errors
-                if response.status_code in [401, 403]:
-                    return {
-                        "answer": "❌ Authentication failed. Please check your Hugging Face token in Streamlit secrets.",
-                        "sources": [],
-                        "retrieved_chunks": 0,
-                        "error": "Authentication failed"
-                    }
-                
-                # Handle 404 errors
-                if response.status_code == 404:
-                    return {
-                        "answer": f"❌ Model not found or not available via Serverless API.\n\nTried: {self.model_name}\n\nTry selecting a different model from the sidebar.",
-                        "sources": [],
-                        "retrieved_chunks": 0,
-                        "error": f"404 - Model not found at {self.api_url}"
-                    }
-                
-                # Success - parse response
-                if response.status_code == 200:
-                    try:
-                        result = response.json()
-                        
-                        # Extract answer based on response format
-                        answer = ""
-                        if isinstance(result, list) and len(result) > 0:
-                            if isinstance(result[0], dict):
-                                answer = result[0].get("generated_text", "")
-                            else:
-                                answer = str(result[0])
-                        elif isinstance(result, dict):
-                            answer = result.get("generated_text", str(result))
-                        else:
-                            answer = str(result)
-                        
-                        if not answer or answer.strip() == "":
-                            answer = "⚠️ Model returned empty response. Try asking the question differently."
-                        
-                        sources = list(set([doc['source'] for doc in retrieved_docs]))
-                        
-                        return {
-                            "answer": answer.strip(),
-                            "sources": sources,
-                            "retrieved_chunks": len(retrieved_docs)
-                        }
-                    
-                    except json.JSONDecodeError:
-                        return {
-                            "answer": f"⚠️ Received non-JSON response:\n{response.text[:300]}",
-                            "sources": [],
-                            "retrieved_chunks": 0,
-                            "error": "Invalid JSON response"
-                        }
-                
-                # Other errors
-                return {
-                    "answer": f"❌ API Error {response.status_code}:\n{response.text[:300]}",
-                    "sources": [],
-                    "retrieved_chunks": 0,
-                    "error": f"HTTP {response.status_code}"
-                }
-                    
-            except requests.exceptions.Timeout:
-                if attempt < max_retries - 1:
-                    print(f"⏰ Timeout, retrying...")
-                    time.sleep(5)
-                    continue
-                else:
-                    return {
-                        'answer': "⏰ Request timed out after multiple attempts. The model might be busy.",
-                        'sources': [],
-                        'retrieved_chunks': 0,
-                        'error': 'Timeout'
-                    }
-            
-            except Exception as e:
-                print(f"❌ Exception: {e}")
-                return {
-                    'answer': f"❌ Unexpected error: {str(e)}",
-                    'sources': [],
-                    'retrieved_chunks': 0,
-                    'error': str(e)
-                }
-        
-        return {
-            'answer': "❌ Failed after multiple attempts",
-            'sources': [],
-            'retrieved_chunks': 0,
-            'error': 'Max retries exceeded'
-        }
+                ],
+                temperature=0.3,
+                max_tokens=512
+            )
+
+            answer = completion.choices[0].message.content
+
+            sources = list(set([doc['source'] for doc in retrieved_docs]))
+
+            return {
+                "answer": answer,
+                "sources": sources,
+                "retrieved_chunks": len(retrieved_docs)
+            }
+
+        except Exception as e:
+            print(f"Groq Error: {e}")
+
+            return {
+                "answer": f"❌ Groq API Error: {str(e)}",
+                "sources": [],
+                "retrieved_chunks": 0,
+                "error": str(e)
+            }

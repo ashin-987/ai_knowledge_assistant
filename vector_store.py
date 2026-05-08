@@ -20,12 +20,7 @@ class VectorStore:
         print("🔧 Initializing Vector Store...")
         
         # Create/open ChromaDB database
-        self.client = chromadb.Client(
-            Settings(
-                anonymized_telemetry=False,
-                is_persistent=False
-            )
-        )
+        self.client = chromadb.PersistentClient(path=persist_directory)
         
         # Load embedding model (FREE - runs locally)
         print("📦 Loading embedding model...")
