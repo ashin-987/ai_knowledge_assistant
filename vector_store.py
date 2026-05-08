@@ -8,6 +8,8 @@ from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict
 import hashlib
+import shutil
+import os
 
 class VectorStore:
     def __init__(self, persist_directory="./chroma_db"):
@@ -20,6 +22,9 @@ class VectorStore:
         print("🔧 Initializing Vector Store...")
         
         # Create/open ChromaDB database
+        if os.path.exists(persist_directory):
+            shutil.rmtree(persist_directory, ignore_errors=True)
+
         self.client = chromadb.PersistentClient(path=persist_directory)
         
         # Load embedding model (FREE - runs locally)
