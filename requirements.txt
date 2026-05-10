@@ -1,12 +1,42 @@
-streamlit>=1.28.0
-chromadb==0.4.24
-sentence-transformers>=2.2.2
-pypdf2>=3.0.1
-requests>=2.31.0
+# Core Web Framework
+streamlit>=1.35.0
 python-dotenv>=1.0.0
-torch
-torchvision
-transformers
-protobuf==3.20.3
+
+# Vector Database & Embeddings
+chromadb==0.4.24
+sentence-transformers>=2.7.0
+
+# Document Processing - Core
+pypdf2>=3.0.1
+
+# Document Processing - Extended Formats (optional but recommended)
+python-docx>=0.8.11
+python-pptx>=0.6.21
+
+# Hybrid Search & Reranking
+rank-bm25>=0.2.2
+
+# LLM API
+groq>=0.9.0
+
+# ML Dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.30.0
+
+# Utilities
 numpy==1.26.4
-groq
+protobuf==3.20.3
+requests>=2.31.0
+
+# Optional: Advanced Features
+# pytesseract>=0.3.10  # For OCR on scanned PDFs
+# pdf2image>=1.16.3    # For PDF to image conversion
+# Pillow>=10.0.0       # Image processing
+# langdetect>=1.0.9    # Language detection
+# camelot-py[cv]       # Table extraction from PDFs
+# tabula-py            # Alternative table extraction
+
+# Optional: Monitoring & Analytics
+# pandas>=2.0.0        # Data analysis
+# plotly>=5.0.0        # Interactive charts
